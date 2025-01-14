@@ -7,9 +7,11 @@ import (
 
     mykube "github.com/abhithind31/cluster-cost-optimizer/pkg/kubernetes"
     "github.com/abhithind31/cluster-cost-optimizer/pkg/database"
+	mymetrics "github.com/abhithind31/cluster-cost-optimizer/pkg/metrics"
     "github.com/abhithind31/cluster-cost-optimizer/pkg/analysis"
     "github.com/gin-gonic/gin"
     metricsclientset "k8s.io/metrics/pkg/client/clientset/versioned"
+	metricsapi "k8s.io/metrics/pkg/apis/metrics/v1beta1"
     k8sclient "k8s.io/client-go/kubernetes"
 )
 
@@ -62,23 +64,23 @@ func startDataCollection(clientset *k8sclient.Clientset, metricsClientset *metri
     }
 }
 
-func collectAndStoreData(clientset *kubernetes.Clientset, metricsClientset *metricsclientset.Clientset) {
+func collectAndStoreData(clientset *k8sclient.Clientset, metricsClientset *metricsclientset.Clientset) {
     // Fetch all pods
-    pods, err := kubernetes.ListPods(clientset)
+    pods, err := mykube.ListPods(clientset)
     if err != nil {
         fmt.Println("Error fetching pods:", err)
         return
     }
 
     // Fetch pod metrics
-    podMetricsList, err := metrics.GetPodMetrics(metricsClientset)
+    podMetricsList, err := mymetrics.GetPodMetrics(metricsClientset)
     if err != nil {
         fmt.Println("Error fetching pod metrics:", err)
         return
     }
 
     // Map metrics by namespace/podName for quick access
-    podMetricsMap := make(map[string]metrics.PodMetrics)
+    podMetricsMap := make(map[string]metricsapi.PodMetrics)
     for _, podMetric := range podMetricsList {
         key := fmt.Sprintf("%s/%s", podMetric.Namespace, podMetric.Name)
         podMetricsMap[key] = podMetric
@@ -89,7 +91,7 @@ func collectAndStoreData(clientset *kubernetes.Clientset, metricsClientset *metr
 
     // Iterate over pods and collect data
     for _, pod := range pods {
-        cpuRequests, memRequests := kubernetes.GetPodResourceRequests(pod)
+        cpuRequests, memRequests := mykube.GetPodResourceRequests(pod)
         key := fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
 
         // Get usage from metrics
@@ -126,7 +128,7 @@ func collectAndStoreData(clientset *kubernetes.Clientset, metricsClientset *metr
 }
 
 func startAnalysis() {
-    ticker := time.NewTicker(3600 * time.Second) // Run analysis every hour
+    ticker := time.NewTicker(60 * time.Second) // Run analysis every hour
     defer ticker.Stop()
 
     for {

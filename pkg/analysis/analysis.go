@@ -31,7 +31,7 @@ func GenerateRecommendations() error {
                 AVG(memory_usage) AS avg_mem_usage,
                 AVG(memory_request) AS avg_mem_request
             FROM pod_metrics
-            WHERE timestamp > NOW() - INTERVAL '24 hours'
+            WHERE timestamp > NOW() - INTERVAL '10 minutes'
             GROUP BY pod_name, namespace
         )
         INSERT INTO recommendations (
@@ -83,7 +83,7 @@ func GetRecommendations() ([]Recommendation, error) {
             potential_savings,
             timestamp
         FROM recommendations
-        WHERE timestamp > NOW() - INTERVAL '1 day';
+        WHERE timestamp > NOW() - INTERVAL '10 minutes';
     `
     rows, err := db.Query(query)
     if err != nil {
